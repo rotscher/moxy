@@ -1,15 +1,10 @@
 package ch.postfinance.moxy.moxy
 
-import io.vertx.core.AsyncResult
-import io.vertx.core.DeploymentOptions
 import io.vertx.core.Future
 import io.vertx.core.Vertx
-import io.vertx.core.eventbus.DeliveryOptions
 import io.vertx.core.eventbus.Message
-import io.vertx.core.json.Json
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
-import java.util.concurrent.TimeUnit
 
 class NodeHandler {
 
@@ -24,16 +19,18 @@ class NodeHandler {
   }
 
   fun getNode(routingContext: RoutingContext) {
-    val nodename = routingContext.request().getParam("nodename")
+    val nodeName = routingContext.request().getParam("nodeName")
   }
 
   fun addNode(routingContext: RoutingContext) {
 
     //val jmxUrl = "service:jmx:rmi://127.0.0.1/stub/rO0ABXN9AAAAAQAlamF2YXgubWFuYWdlbWVudC5yZW1vdGUucm1pLlJNSVNlcnZlcnhyABdqYXZhLmxhbmcucmVmbGVjdC5Qcm94eeEn2iDMEEPLAgABTAABaHQAJUxqYXZhL2xhbmcvcmVmbGVjdC9JbnZvY2F0aW9uSGFuZGxlcjt4cHNyAC1qYXZhLnJtaS5zZXJ2ZXIuUmVtb3RlT2JqZWN0SW52b2NhdGlvbkhhbmRsZXIAAAAAAAAAAgIAAHhyABxqYXZhLnJtaS5zZXJ2ZXIuUmVtb3RlT2JqZWN002G0kQxhMx4DAAB4cHcyAApVbmljYXN0UmVmAAkxMjcuMC4wLjEAAKFj3grabr/F9WJHz8xTAAABaKuY7daAAgB4"
 
-    val nodeName = routingContext.request().getParam("nodename")
+    val nodeName = routingContext.request().getParam("nodeName")
     val jmxUrl: String? = routingContext.bodyAsJson.getString("jmxUrl")
-    val configuration = routingContext.bodyAsJson.getString("configuration")
+    val configFile = routingContext.bodyAsJson.getString("configFile")
+    val user: String? = routingContext.bodyAsJson.getString("user")
+    val group: String? = routingContext.bodyAsJson.getString("group")
 
     if (deploymentMap.containsKey(nodeName)) {
       val response = routingContext.response()
@@ -42,10 +39,7 @@ class NodeHandler {
       return
     }
 
-    val data = JsonObject(mapOf(
-    "nodename" to nodeName,
-    "jmxUrl" to jmxUrl,
-    "configuration" to configuration))
+    val data = NodeModel(nodeName, if (jmxUrl == null) "" else jmxUrl, configFile, if (user == null) "" else user, if (group == null) "" else group).asJsonObject()
 
     val deployEndpoint = Future.future<Message<Any>>()
 
@@ -77,7 +71,7 @@ class NodeHandler {
   }
 
   fun removeNode(routingContext: RoutingContext) {
-    val nodeName = routingContext.request().getParam("nodename")
+    val nodeName = routingContext.request().getParam("nodeName")
     val response = routingContext.response()
 
     if (deploymentMap.containsKey(nodeName)) {

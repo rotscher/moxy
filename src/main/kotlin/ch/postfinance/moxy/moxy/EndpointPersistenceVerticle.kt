@@ -23,7 +23,7 @@ object EndpointPersistence {
   }
 
   fun addEndpoint(endpoint: JsonObject, vertx: Vertx): Future<Void>? {
-    dataMap.put(endpoint.getString("nodename"), endpoint)
+    dataMap.put(endpoint.getString("nodeName"), endpoint)
     return persist(vertx)
   }
 

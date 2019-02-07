@@ -14,9 +14,8 @@ class EndpointDeployerVerticle: AbstractVerticle() {
 
     eb.consumer<JsonObject>("deployer.endpoint.jmx") {
 
-      val nodeName = it.body().getString("nodename")
-      val jmxUrl = it.body().getString("jmxUrl")
-      val configuration = it.body().getString("configuration")
+      val node = NodeModel(it.body())
+
       val deploymentOptions = DeploymentOptions()
         .setWorker(true)
         .setWorkerPoolName("bootstrap")
@@ -24,27 +23,29 @@ class EndpointDeployerVerticle: AbstractVerticle() {
         .setMaxWorkerExecuteTimeUnit(TimeUnit.MINUTES)
 
       vertx.deployVerticle(
-        JmxUrlRetrieverVerticle(nodeName, jmxUrl, "user", "group"),
-        deploymentOptions) { jmxMetricsResult ->
-        if (jmxMetricsResult.succeeded()) {
-          vertx.undeploy(jmxMetricsResult.result())
-        } else   {
-          //increment a counter
-        }
-      }
-
-      var deploymentId = ""
-      vertx.deployVerticle(
-        JmxEndpointVerticle(nodeName, configuration),
+        JmxEndpointVerticle(node.nodeName, node.configFile),
         DeploymentOptions(JsonObject(mapOf("worker" to true)))) { jmxMetricsResult ->
         if (jmxMetricsResult.succeeded()) {
-          deploymentId = jmxMetricsResult.result()
-          System.out.println("deployed verticle ${deploymentId} for node ${nodeName}");
+          val deploymentId = jmxMetricsResult.result()
+          System.out.println("deployed verticle ${deploymentId} for node ${node.nodeName}");
+
+          //
+          vertx.deployVerticle(
+                  JmxUrlRetrieverVerticle(node.nodeName, node.jmxUrl, node.user, node.group),
+                  deploymentOptions) { jmxMetricsResult ->
+            if (jmxMetricsResult.succeeded()) {
+              vertx.undeploy(jmxMetricsResult.result())
+            } else   {
+              //increment a counter
+            }
+          }
+
+
         } else   {
           //increment a counter
         }
       }
-      it.reply(deploymentId)
+      it.reply("success")
     }
   }
 }

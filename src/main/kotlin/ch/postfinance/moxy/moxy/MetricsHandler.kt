@@ -14,29 +14,29 @@ class MetricsHandler(vertx: Vertx) {
 
     eb.consumer<Any>("metrics-init") { message ->
       val messageBody = message.body() as JsonObject
-      dataMap[messageBody.getString("nodename")] = Buffer.buffer()
+      dataMap[messageBody.getString("nodeName")] = Buffer.buffer()
     }
 
     eb.consumer<Any>("metrics-remove") { message ->
       val messageBody = message.body() as JsonObject
-      dataMap.remove(messageBody.getString("nodename"))
+      dataMap.remove(messageBody.getString("nodeName"))
     }
 
     eb.consumer<Any>("metrics") { message ->
       val messageBody = message.body() as JsonObject
-      dataMap[messageBody.getString("nodename")] = Buffer.buffer(messageBody.getBinary("data"))
+      dataMap[messageBody.getString("nodeName")] = Buffer.buffer(messageBody.getBinary("data"))
       //TODO: add metric with buffer sizes
     }
   }
 
   fun getMetrics(routingContext: RoutingContext) {
 
-    val nodename = routingContext.request().getParam("nodename")
+    val nodeName = routingContext.request().getParam("nodeName")
 
     val response = routingContext.response()
     response.isChunked = true
 
-    val metricData = dataMap[nodename]
+    val metricData = dataMap[nodeName]
     if (metricData == null) {
       response.statusCode = 404
       response.end()

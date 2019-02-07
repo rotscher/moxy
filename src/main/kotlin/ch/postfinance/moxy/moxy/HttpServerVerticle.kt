@@ -21,11 +21,11 @@ class HttpServerVerticle : AbstractVerticle() {
     val metricsHandler = MetricsHandler(vertx)
 
     router.route().handler(BodyHandler.create())
-    router.route(HttpMethod.POST, "/nodes/:nodename").handler(handler::addNode)
+    router.route(HttpMethod.POST, "/nodes/:nodeName").handler(handler::addNode)
     router.route(HttpMethod.GET, "/nodes/").handler(handler::getAll)
-    router.route(HttpMethod.GET, "/nodes/:nodename").handler(handler::getNode)
-    router.route(HttpMethod.DELETE, "/nodes/:nodename").handler(handler::removeNode)
-    router.route(HttpMethod.GET, "/nodes/:nodename/metrics").handler(metricsHandler::getMetrics)
+    router.route(HttpMethod.GET, "/nodes/:nodeName").handler(handler::getNode)
+    router.route(HttpMethod.DELETE, "/nodes/:nodeName").handler(handler::removeNode)
+    router.route(HttpMethod.GET, "/nodes/:nodeName/metrics").handler(metricsHandler::getMetrics)
 
     val registry = BackendRegistries.getDefaultNow() as PrometheusMeterRegistry
     // Setup a route for metrics

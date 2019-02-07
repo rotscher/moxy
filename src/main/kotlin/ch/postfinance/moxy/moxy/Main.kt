@@ -16,7 +16,6 @@ import io.vertx.micrometer.backends.BackendRegistries
 
 fun main() {
 
-
   val vertx = Vertx.vertx(
     VertxOptions().setMetricsOptions(
       MicrometerMetricsOptions()

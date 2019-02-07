@@ -10,7 +10,7 @@ import java.util.*
 import java.util.stream.IntStream
 
 
-class JmxEndpointVerticle(private val nodeName: String, private val configuration: String) : AbstractVerticle() {
+class JmxEndpointVerticle(private val nodeName: String, private val configFile: String) : AbstractVerticle() {
 
   override fun start() {
 
@@ -20,8 +20,8 @@ class JmxEndpointVerticle(private val nodeName: String, private val configuratio
       jmxUrl = reply.body()
     }
 
-    val collector = MyJmxCollector(File("/home/rotscher/data/projects/moxy/src/main/resources/tomcat.yml"))
-    vertx.eventBus().publish("metrics-init", JsonObject(mapOf("nodename" to nodeName)))
+    val collector = MyJmxCollector(File(configFile))
+    vertx.eventBus().publish("metrics-init", JsonObject(mapOf("nodeName" to nodeName)))
     vertx.setPeriodic(15000) { id ->
       if (jmxUrl != "") {
         val buff = Buffer.buffer()
@@ -33,17 +33,14 @@ class JmxEndpointVerticle(private val nodeName: String, private val configuratio
             }
           }
 
-        val message = JsonObject()
-        message.put("nodename", nodeName)
-        message.put("data", buff.bytes)
-
+        val message = JsonObject(mapOf("nodeName" to nodeName, "data" to buff.bytes))
         vertx.eventBus().publish("metrics", message)
       }
     }
   }
 
   override fun stop() {
-    vertx.eventBus().publish("metrics-remove  ", JsonObject(mapOf("nodename" to nodeName)))
+    vertx.eventBus().publish("metrics-remove  ", JsonObject(mapOf("nodeName" to nodeName)))
   }
 
   class MyJmxCollector(configFile: File) : JmxCollector(configFile) {

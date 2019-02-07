@@ -1,32 +1,106 @@
 ---
 lowercaseOutputLabelNames: true
 lowercaseOutputName: true
+whitelistObjectNames:
+  - 'Catalina:type=GlobalRequestProcessor,*'
+  - 'Catalina:j2eeType=Servlet,*'
+  - 'Catalina:type=Manager,*'
+  - 'Catalina:type=Executor,*'
+  - 'Catalina:type=DataSource,*'
+  - 'Catalina:type=ThreadPool,*'
+  - 'java.lang:type=Threading,*'
+  - 'java.lang:type=Memory,*'
+  - 'java.lang:type=GarbageCollector,*'
+  - 'java.lang:type=Runtime,*'
+  - 'com.mchange.v2.c3p0:type=PooledDataSource,*'
+
 rules:
-  - pattern: 'Catalina<type=GlobalRequestProcessor, name=\"(\w+-\w+)-(\d+)\"><>(\w+):'
-    name: tomcat_$3_total
-    labels:
-      port: "$2"
-      protocol: "$1"
-    help: Tomcat global $3
-    type: COUNTER
-  - pattern: 'Catalina<j2eeType=Servlet, WebModule=//([-a-zA-Z0-9+&@#/%?=~_|!:.,;]*[-a-zA-Z0-9+&@#/%=~_|]), name=([-a-zA-Z0-9+/$%~_-|!.]*), J2EEApplication=none, J2EEServer=none><>(requestCount|maxTime|processingTime|errorCount):'
-    name: tomcat_servlet_$3_total
-    labels:
+ - pattern: 'java.lang<type=Runtime><>(\w+):'
+   name: java_lang_runtime_$1
+   labels:
+     name: "$1"
+   type: GAUGE
+ - pattern: 'java.lang<type=GarbageCollector, name=([\w ]+), key=([\w ]+)><(\w+), (\w+)>(\w+):'
+   name: java_lang_garbagecollector_$3_$4_$5
+   labels:
+     key: "$2"
+     name: "$1"
+   type: GAUGE
+ - pattern: 'java.lang<type=GarbageCollector, name=([\w ]+)><>(\w+):'
+   name: java_lang_garbagecollector_$2
+   labels:
+     name: "$1"
+   type: GAUGE
+ - pattern: 'java.lang<type=Memory><(\w+)MemoryUsage>(\w+):'
+   name: jvm_memory_bytes_$2
+   labels:
+     area: "$1"
+   help: Java $2 $1 memory usage
+   type: GAUGE
+ - pattern: 'java.lang<type=MemoryPool, name=([\w ]+)><CollectionUsage>(\w+):'
+   name: jvm_memory_pool_bytes_$2
+   labels:
+     name: "$1"
+   help: Java $1 memory pool usage
+   type: GAUGE
+ - pattern: 'Catalina<type=GlobalRequestProcessor, name=\"(\w+-\w+)-(\d+)\"><>(\w+):'
+   name: tomcat_$3_total
+   labels:
+     port: "$2"
+     protocol: "$1"
+   help: Tomcat global $3
+   type: COUNTER
+ - pattern: 'Catalina<j2eeType=Servlet, WebModule=\/\/([-a-zA-Z0-9+&@#\/%?=~_|!:.,;]*[-a-zA-Z0-9+&@#\/%=~_|]), name=([-a-zA-Z0-9+\/$%~_-|!.]*), J2EEApplication=none, J2EEServer=none><>(requestCount|maxTime|processingTime|errorCount):'
+   name: tomcat_servlet_$3_total
+   labels:
       module: "$1"
       servlet: "$2"
-    help: Tomcat servlet $3 total
-    type: COUNTER
-  - pattern: 'Catalina<type=ThreadPool, name="(\w+-\w+)-(\d+)"><>(currentThreadCount|currentThreadsBusy|keepAliveCount|pollerThreadCount|connectionCount):'
-    name: tomcat_threadpool_$3
-    labels:
-      port: "$2"
-      protocol: "$1"
-    help: Tomcat threadpool $3
-    type: GAUGE
-  - pattern: 'Catalina<type=Manager, host=([-a-zA-Z0-9+&@#/%?=~_|!:.,;]*[-a-zA-Z0-9+&@#/%=~_|]), context=([-a-zA-Z0-9+/$%~_-|!.]*)><>(processingTime|sessionCounter|rejectedSessions|expiredSessions):'
-    name: tomcat_session_$3_total
-    labels:
+   help: Tomcat servlet $3 total
+   type: COUNTER
+ - pattern: 'Catalina<type=Manager, host=([-a-zA-Z0-9+&@#\/%?=~_|!:.,;]*[-a-zA-Z0-9+&@#\/%=~_|]), context=([-a-zA-Z0-9+\/$%~_-|!.]*)><>(processingTime|sessionCounter|rejectedSessions|expiredSessions|activeSessions):'
+   name: tomcat_session_$3_total
+   labels:
       context: "$2"
       host: "$1"
-    help: Tomcat session $3 total
-    type: COUNTER
+   help: Tomcat session $3 total
+   type: COUNTER
+ - pattern: 'Catalina<type=Executor, name=(\w+)><>(maxThreads|queueSize|completedTaskCount):'
+   name: tomcat_threads_$2
+   labels:
+      name: "$1"
+   help: Tomcat threads $1
+   type: COUNTER
+ - pattern: 'Catalina<type=DataSource, host=([-a-zA-Z0-9+&@#\/%?=~_|!:.,;]*[-a-zA-Z0-9+&@#\/%=~_|]), context=([-a-zA-Z0-9+\/$%~_-|!.]*), class=javax.sql.DataSource, name=\"([-a-zA-Z0-9+\/$%~_-|!.]*)\"><>(numActive|numIdle|maxActive|maxTotal|maxIdle|waitCount|createdCount|releasedIdleCount|releasedCount|returnedCount|reconnectedCount):'
+   name: tomcat_datasource_$4
+   labels:
+      host: "$1"
+      name: "$2"
+      datasource: "$3"
+   help: Tomcat context datasource $4
+   type: GAUGE
+ - pattern: 'Catalina<type=DataSource, class=javax.sql.DataSource, name=\"([-a-zA-Z0-9+\/$%~_-|!.]*)\"><>(numActive|numIdle|maxActive|maxTotal|maxIdle|waitCount|createdCount|releasedIdleCount|releasedCount|returnedCount|reconnectedCount):'
+   name: tomcat_datasource_$2
+   labels:
+      name: "$2"
+      datasource: "$1"
+   help: Tomcat global datasource $1
+   type: GAUGE
+ - pattern: 'Catalina<type=ThreadPool, name="(\w+-\w+-*\w*).*-(\d+)"><>(currentThreadCount|currentThreadsBusy|keepAliveCount|pollerThreadCount|connectionCount):'
+   name: tomcat_threadpool_$3
+   labels:
+      port: "$2"
+      protocol: "$1"
+   help: Tomcat threadpool $3
+   type: GAUGE
+ - pattern: 'java.lang<type=Threading><>(DaemonThreadCount|PeakThreadCount|TotalStartedThreadCount|ThreadCount):'
+   name: java_threading_$1
+   help: Java Threading $1
+   type: COUNTER
+ - pattern: 'java.lang<type=Threading><>(CurrentThreadUserTime|CurrentThreadCpuTime):'
+   name: java_threading_$1
+   help: Java Threading $1
+   type: GAUGE
+ - pattern: 'com.mchange.v2.c3p0<type=PooledDataSource, identityToken=.*, name=.*><>(.*):'
+   name: com_mchange_v2_c3p0_pooleddatasource_$1
+   help: com_mchange_v2_c3p0_pooleddatasource_$1
+   type: GAUGE

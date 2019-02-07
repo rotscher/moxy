@@ -62,5 +62,21 @@ class JmxEndpointVerticle(private val nodeName: String, private val configFile: 
       val scrapeCount = MetricFamilySamples.Sample(sampleName, listOf<String>(), listOf<String>(), value)
       mfsList.add(MetricFamilySamples(sampleName, Type.GAUGE, "Time this JMX scrape took, in seconds.", listOf(scrapeCount)))
     }
+
+      /*
+      Callable<List<Collector.MetricFamilySamples>> callable = () -> NodeVerticleSender.this.collector.collect(jmxUrl);
+        Future<List<Collector.MetricFamilySamples>> future = executorService.submit(callable);
+        try {
+            List<Collector.MetricFamilySamples> metricFamilySamples = future.get(this.getSampleInterval(), TimeUnit.SECONDS);
+            LOG.fine("finished collect on thread, nodeKey=" + this.getNodeKey() + ", name=" + Thread.currentThread().getName() + ", id=" + Thread.currentThread().getId() + ", jmx-url=" + jmxUrl);
+            return metricFamilySamples;
+        } catch (TimeoutException e) {
+            LOG.warning("timeout while scraping metrics, nodeKey=" + this.getNodeKey());
+            future.cancel(true);
+        } catch (InterruptedException | ExecutionException e) {
+            LOG.severe("error while scraping metrics, " + e.getMessage());
+        }
+
+       */
   }
 }

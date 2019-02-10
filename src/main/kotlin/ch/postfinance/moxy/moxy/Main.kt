@@ -5,6 +5,7 @@ import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics
 import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics
 import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics
+import io.micrometer.core.instrument.binder.system.UptimeMetrics
 import io.micrometer.prometheus.PrometheusMeterRegistry
 import io.vertx.core.DeploymentOptions
 import io.vertx.core.Vertx
@@ -24,11 +25,15 @@ fun main() {
         .setEnabled(true)))
 
   val registry = BackendRegistries.getDefaultNow() as PrometheusMeterRegistry
+
+  registry.config().commonTags("app", "moxy")
+
   ClassLoaderMetrics().bindTo(registry)
   JvmMemoryMetrics().bindTo(registry)
   JvmGcMetrics().bindTo(registry)
   ProcessorMetrics().bindTo(registry)
   JvmThreadMetrics().bindTo(registry)
+  UptimeMetrics().bindTo(registry)
 
   val httpServer = HttpServerVerticle()
   vertx.deployVerticle(httpServer, DeploymentOptions(JsonObject(mapOf("worker" to true))))

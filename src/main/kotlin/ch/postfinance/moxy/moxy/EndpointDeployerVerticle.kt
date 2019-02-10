@@ -7,8 +7,6 @@ import java.util.concurrent.TimeUnit
 
 class EndpointDeployerVerticle: AbstractVerticle() {
 
-  private val deploymentMap = mutableMapOf<String, String>()
-
   override fun start() {
     val eb = vertx.eventBus()
 
@@ -19,22 +17,22 @@ class EndpointDeployerVerticle: AbstractVerticle() {
       val deploymentOptions = DeploymentOptions()
         .setWorker(true)
         .setWorkerPoolName("bootstrap")
-        .setMaxWorkerExecuteTime(2)  //make this configurable
+        .setMaxWorkerExecuteTime(2)  //TODO: make this configurable
         .setMaxWorkerExecuteTimeUnit(TimeUnit.MINUTES)
 
       vertx.deployVerticle(
         JmxEndpointVerticle(node.nodeName, node.configFile),
         DeploymentOptions(JsonObject(mapOf("worker" to true)))) { jmxMetricsResult ->
         if (jmxMetricsResult.succeeded()) {
-          val deploymentId = jmxMetricsResult.result()
-          System.out.println("deployed verticle ${deploymentId} for node ${node.nodeName}");
+          val json = node.asJsonObject()
+          json.put("deploymentId", jmxMetricsResult.result())
+          eb.send("nodehandler.register", json)
 
-          //
           vertx.deployVerticle(
                   JmxUrlRetrieverVerticle(node.nodeName, node.jmxUrl, node.user, node.group),
-                  deploymentOptions) { jmxMetricsResult ->
-            if (jmxMetricsResult.succeeded()) {
-              vertx.undeploy(jmxMetricsResult.result())
+                  deploymentOptions) { jmxUrlRetrieverResult ->
+            if (jmxUrlRetrieverResult.succeeded()) {
+              vertx.undeploy(jmxUrlRetrieverResult.result())
             } else   {
               //increment a counter
             }

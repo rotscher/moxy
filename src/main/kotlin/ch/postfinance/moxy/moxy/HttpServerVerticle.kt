@@ -17,7 +17,7 @@ class HttpServerVerticle : AbstractVerticle() {
 
     val router = Router.router(vertx)
 
-    val handler = NodeHandler()
+    val handler = NodeHandler(vertx)
     val metricsHandler = MetricsHandler(vertx)
 
     router.route().handler(BodyHandler.create())
@@ -35,13 +35,12 @@ class HttpServerVerticle : AbstractVerticle() {
     }
 
     server.requestHandler(router)
-      .listen(8080) { http ->
+      .listen(8181) { http ->
         if (http.succeeded()) {
           startFuture.complete()
-          println("HTTP server started on port 8080")
-          //vertx.deployVerticle(PrometheusEndpointRegisterVerticle(), DeploymentOptions(JsonObject(mapOf("worker" to true))))
+          println("HTTP server started on port 8181")
         } else {
-          startFuture.fail(http.cause());
+          startFuture.fail(http.cause())
         }
       }
   }

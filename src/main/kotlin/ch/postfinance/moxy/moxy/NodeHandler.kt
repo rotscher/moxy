@@ -6,25 +6,50 @@ import io.vertx.core.eventbus.Message
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
 
-class NodeHandler {
+class NodeHandler(vertx: Vertx) {
 
-  private val deploymentMap = mutableMapOf<String, String>()
+  private val deploymentMap = mutableMapOf<String, JsonObject>()
+
+  init {
+    val eb = vertx.eventBus()
+
+    eb.consumer<Any>("nodehandler.register") { message ->
+      val messageBody = message.body() as JsonObject
+      val nodeName = messageBody.getString("nodeName")
+      deploymentMap[nodeName] = messageBody
+    }
+
+    eb.consumer<Any>("nodehandler.update") { message ->
+      val messageBody = message.body() as JsonObject
+      val nodeName = messageBody.getString("nodeName")
+      deploymentMap[nodeName]?.put("jmxUrl", messageBody.getString("jmxUrl"))
+    }
+
+    eb.consumer<Any>("nodehandler.unregister") { message ->
+      val messageBody = message.body() as JsonObject
+      val nodeName = messageBody.getString("nodeName")
+      deploymentMap.remove(nodeName)
+    }
+  }
 
   fun getAll(routingContext: RoutingContext) {
     val response = routingContext.response()
     response.putHeader("content-type", "application/json")
     response.isChunked = true
-    response.write(JsonObject(deploymentMap.toMap()).encodePrettily())
+    deploymentMap.forEach{ response.write(it.value.encodePrettily())}
     response.end()
   }
 
   fun getNode(routingContext: RoutingContext) {
     val nodeName = routingContext.request().getParam("nodeName")
+    val response = routingContext.response()
+    response.putHeader("content-type", "application/json")
+    response.isChunked = true
+    response.write(deploymentMap[nodeName]?.encodePrettily())
+    response.end()
   }
 
   fun addNode(routingContext: RoutingContext) {
-
-    //val jmxUrl = "service:jmx:rmi://127.0.0.1/stub/rO0ABXN9AAAAAQAlamF2YXgubWFuYWdlbWVudC5yZW1vdGUucm1pLlJNSVNlcnZlcnhyABdqYXZhLmxhbmcucmVmbGVjdC5Qcm94eeEn2iDMEEPLAgABTAABaHQAJUxqYXZhL2xhbmcvcmVmbGVjdC9JbnZvY2F0aW9uSGFuZGxlcjt4cHNyAC1qYXZhLnJtaS5zZXJ2ZXIuUmVtb3RlT2JqZWN0SW52b2NhdGlvbkhhbmRsZXIAAAAAAAAAAgIAAHhyABxqYXZhLnJtaS5zZXJ2ZXIuUmVtb3RlT2JqZWN002G0kQxhMx4DAAB4cHcyAApVbmljYXN0UmVmAAkxMjcuMC4wLjEAAKFj3grabr/F9WJHz8xTAAABaKuY7daAAgB4"
 
     val nodeName = routingContext.request().getParam("nodeName")
     val jmxUrl: String? = routingContext.bodyAsJson.getString("jmxUrl")
@@ -61,9 +86,6 @@ class NodeHandler {
     val response = routingContext.response()
     response.statusCode = 201
     response.end()
-
-    //persist the nodes
-
   }
 
   private fun persistEndpoint(data: JsonObject, vertx: Vertx): Future<Void>? {
@@ -75,7 +97,7 @@ class NodeHandler {
     val response = routingContext.response()
 
     if (deploymentMap.containsKey(nodeName)) {
-      routingContext.vertx().undeploy(deploymentMap.get(nodeName)) {
+      routingContext.vertx().undeploy(deploymentMap.get(nodeName)?.getString("deploymentId")) {
         if (it.succeeded()) {
           deploymentMap.remove(nodeName)
 
@@ -91,7 +113,7 @@ class NodeHandler {
     }
 
     response.end()
-    //persist the nodes
+    //TODO: persist the nodes
   }
 
 }

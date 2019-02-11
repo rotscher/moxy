@@ -28,8 +28,6 @@ fun main() {
 
   registry.config().commonTags("app", "moxy")
 
-  registry.counter("moxy_init_count").increment()
-
   ClassLoaderMetrics().bindTo(registry)
   JvmMemoryMetrics().bindTo(registry)
   JvmGcMetrics().bindTo(registry)
@@ -37,7 +35,6 @@ fun main() {
   JvmThreadMetrics().bindTo(registry)
   UptimeMetrics().bindTo(registry)
 
-  MoxyConfiguration.init()
 
   val httpServer = HttpServerVerticle()
   vertx.deployVerticle(httpServer, DeploymentOptions(JsonObject(mapOf("worker" to true))))

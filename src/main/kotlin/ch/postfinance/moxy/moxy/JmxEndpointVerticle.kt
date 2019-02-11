@@ -1,14 +1,17 @@
 package ch.postfinance.moxy.moxy
 
+import io.micrometer.prometheus.PrometheusMeterRegistry
 import io.prometheus.client.Collector
 import io.prometheus.client.exporter.common.TextFormat
 import io.prometheus.jmx.JmxCollector
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.json.JsonObject
+import io.vertx.micrometer.backends.BackendRegistries
 import org.yaml.snakeyaml.Yaml
 import java.io.FileReader
 import java.io.StringWriter
+import java.lang.Exception
 import java.util.*
 import java.util.stream.IntStream
 
@@ -17,31 +20,43 @@ class JmxEndpointVerticle(private val nodeName: String, private val configFile: 
 
   override fun start() {
 
+    val registry = BackendRegistries.getDefaultNow() as PrometheusMeterRegistry
     var collector: JmxCollector? = null
 
-    vertx.eventBus().consumer<String>("jmxUrl.${nodeName}") { reply ->
+    vertx.eventBus().consumer<String>("jmxUrl.$nodeName") { reply ->
       collector = handleUrlRetrieval(reply.body(), "jmxUrl")
+      EndpointPersistence.updateJmxUrl(nodeName, reply.body(), vertx)?.setHandler {
+        if (!it.succeeded()) {
+          registry.counter("moxy_error_count", "name", "endpoint_persistence", "action", "updateJmx").increment()
+        }
+      }
     }
 
-    vertx.eventBus().consumer<String>("hostPort.${nodeName}") { reply ->
+    vertx.eventBus().consumer<String>("hostPort.$nodeName") { reply ->
       collector = handleUrlRetrieval(reply.body(), "hostPort")
     }
 
     vertx.eventBus().publish("metrics-init", JsonObject(mapOf("nodeName" to nodeName)))
-    vertx.setPeriodic(15000) {
-      if (collector != null) {
-        val myCollector = collector
-        val mfsList = myCollector?.collect()
-        val vector = Vector(mfsList).elements()
+    vertx.setPeriodic(MoxyConfiguration.configuration.scrapeDelay) {
+      try {
+        if (collector != null) {
+          val myCollector = collector
+          val mfsList = myCollector?.collect()
+          val vector = Vector(mfsList).elements()
 
-        val bufWriter = StringWriter()
-        TextFormat.write004(bufWriter, vector)
+          val bufWriter = StringWriter()
+          TextFormat.write004(bufWriter, vector)
 
-        val buff = Buffer.buffer()
-        buff.appendBytes(bufWriter.toString().toByteArray())
+          val buff = Buffer.buffer()
+          buff.appendBytes(bufWriter.toString().toByteArray())
 
-        val message = JsonObject(mapOf("nodeName" to nodeName, "data" to buff.bytes))
-        vertx.eventBus().publish("metrics", message)
+          val message = JsonObject(mapOf("nodeName" to nodeName, "data" to buff.bytes))
+          vertx.eventBus().publish("metrics", message)
+        }
+      } catch(e: Exception) {
+        //TODO: handle this, send an event over the bus
+        //handle jmx_scrape_error 1.0, exception can't be caught here
+        registry.counter("moxy_error_count", "name", "scrapeEvent", "exception", "${e.javaClass}").increment()
       }
     }
   }

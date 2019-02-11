@@ -35,10 +35,10 @@ class HttpServerVerticle : AbstractVerticle() {
     }
 
     server.requestHandler(router)
-      .listen(8181) { http ->
+      .listen(MoxyConfiguration.configuration.httpServerPort) { http ->
         if (http.succeeded()) {
           startFuture.complete()
-          println("HTTP server started on port 8181")
+          println("HTTP server started on port ${MoxyConfiguration.configuration.httpServerPort}")
         } else {
           startFuture.fail(http.cause())
         }

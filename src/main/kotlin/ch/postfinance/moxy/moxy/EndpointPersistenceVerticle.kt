@@ -11,8 +11,7 @@ object EndpointPersistence {
   private val dataMap = JsonObject()
 
   fun init(vertx: Vertx) {
-    //TODO: make filepath configurable
-    vertx.fileSystem().readFile("endpoints.json") { result ->
+    vertx.fileSystem().readFile(MoxyConfiguration.configuration.dataFile) { result ->
       if (result.succeeded()) {
         JsonObject(result.result()).forEach {
           dataMap.put(it.key, it.value)
@@ -35,15 +34,14 @@ object EndpointPersistence {
     return persist(vertx)
   }
 
-  fun updateSomethingTODO(nodeName: String, jmxUrl: String, vertx: Vertx): Future<Void>? {
+  fun updateJmxUrl(nodeName: String, jmxUrl: String, vertx: Vertx): Future<Void>? {
     dataMap.getJsonObject(nodeName).put("jmxUrl", jmxUrl)
     return persist(vertx)
   }
 
   private fun persist(vertx: Vertx): Future<Void>? {
-    //TODO: make filepath configurable
     val future = Future.future<Void>()
-    vertx.fileSystem().writeFile("endpoints.json", dataMap.toBuffer(), future.completer())
+    vertx.fileSystem().writeFile(MoxyConfiguration.configuration.dataFile, dataMap.toBuffer(), future.completer())
     return future
   }
 }

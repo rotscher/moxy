@@ -1,8 +1,10 @@
 package ch.postfinance.moxy.moxy
 
+import io.micrometer.prometheus.PrometheusMeterRegistry
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.DeploymentOptions
 import io.vertx.core.json.JsonObject
+import io.vertx.micrometer.backends.BackendRegistries
 import java.util.concurrent.TimeUnit
 
 class EndpointDeployerVerticle: AbstractVerticle() {
@@ -17,8 +19,10 @@ class EndpointDeployerVerticle: AbstractVerticle() {
       val deploymentOptions = DeploymentOptions()
         .setWorker(true)
         .setWorkerPoolName("bootstrap")
-        .setMaxWorkerExecuteTime(2)  //TODO: make this configurable
+        .setMaxWorkerExecuteTime(MoxyConfiguration.configuration.bootstrapMaxWait)
         .setMaxWorkerExecuteTimeUnit(TimeUnit.MINUTES)
+
+      val registry = BackendRegistries.getDefaultNow() as PrometheusMeterRegistry
 
       vertx.deployVerticle(
         JmxEndpointVerticle(node.nodeName, node.configFile),
@@ -34,13 +38,13 @@ class EndpointDeployerVerticle: AbstractVerticle() {
             if (jmxUrlRetrieverResult.succeeded()) {
               vertx.undeploy(jmxUrlRetrieverResult.result())
             } else   {
-              //increment a counter
+              registry.counter("moxy_error_count", "name", "deployVerticle", "verticle", "JmxUrlRetrieverVerticle").increment()
             }
           }
 
 
         } else   {
-          //increment a counter
+          registry.counter("moxy_error_count", "name", "deployVerticle", "verticle", "JmxEndpointVerticle").increment()
         }
       }
       it.reply("success")

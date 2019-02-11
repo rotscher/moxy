@@ -8,47 +8,12 @@ object MoxyConfiguration {
     var configuration: Configuration =  Yaml().loadAs(
             FileReader(System.getProperty("moxy.configuration.path", "src/main/resources/moxy.yaml")),
             Configuration::class.java)
-   /* var isMoxyEnabled = false
-    var metricsLimit = -1
-
-    /* for debugging and testing performance, not to be used in production */
-    var performanceDebug = false
-    var fakeMetricsNbr = 50_000
-
-    /* for testing and debugging of jmx url retrieval */
-    var staticJmxRetrieval = false
-    var jmxUrl: String? = null
-    var hostPort: String? = null
-    var jmxDelay = false
-    var jmxDelayCount = 10*/
-
-    fun init() {
-
-        //TODO: make filepath configurable
-        System.out.println(configuration)
-
-       /* configuration = Yaml().loadAs(
-                FileReader(System.getProperty("moxy.configuration.path", "src/main/resources/moxy.yaml")),
-                Configuration::class.java)
-*/
-/*
-        isMoxyEnabled = yamlLoad.getOrDefault("moxy.enabled", "false").toBoolean()
-        metricsLimit = yamlLoad.getOrDefault("moxy.scrape.limit", "-1").toInt()
-        performanceDebug = yamlLoad.getOrDefault("moxy.debug.performance.enabled", "false").toBoolean()
-        fakeMetricsNbr = yamlLoad.getOrDefault("moxy.debug.performance.fakeMetrics", "50000").toInt()
-        staticJmxRetrieval = yamlLoad.getOrDefault("moxy.debug.jmxRetrieval.static", "false").toBoolean()
-        jmxUrl = yamlLoad.get("moxy.debug.jmxRetrieval.jmxUrl")
-        hostPort = yamlLoad.get("moxy.debug.jmxRetrieval.hostPort")
-        jmxDelay = yamlLoad.getOrDefault("moxy.debug.jmxRetrieval.delay.enabled", "false").toBoolean()
-        jmxDelayCount = yamlLoad.getOrDefault("moxy.debug.jmxRetrieval.delay.count", "10").toInt()*/
-    }
-
-
-
 }
 
-data class Configuration(var name: String, var enabled: Boolean, var metricsLimit: Int, var debug: DebugConf) {
-    constructor(): this("", true, -1, DebugConf())
+data class Configuration(var name: String, var enabled: Boolean, var httpServerPort: Int, var dataFile: String, var scrapeDelay: Long, var metricsLimit: Int, var bootstrapMaxWait: Long, var debug: DebugConf) {
+
+
+    constructor(): this("", true, 8181, "", 15000, -1,15, DebugConf())
 }
 
 data class DebugConf(var performance: PerformanceConf, var jmxRetrieval: JmxRetrievalConf) {

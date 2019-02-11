@@ -1,8 +1,12 @@
 name: default
 enabled: true
+httpServerPort: 8181
+dataFile: /home/rotscher/data/projects/moxy/endpoints.json
+scrapeDelay: 15000
 # max number of metrics to be scraped
 metricsLimit: -1
 # the performance stuff might be used for testing and debugging
+bootstrapMaxWait: 15
 debug:
   performance:
     enabled: false

@@ -19,18 +19,16 @@ class JmxEndpointVerticle(private val nodeName: String, private val configFile: 
 
     var collector: JmxCollector? = null
 
-    vertx.eventBus().consumer<String>(nodeName) { reply ->
-      val jmxUrl = reply.body()
-      val yaml = Yaml().load(FileReader(configFile))
-      val yaml2 = (yaml as (Map<*, *>)).toMutableMap()
-      yaml2.put("jmxUrl", jmxUrl)
-      collector = MyJmxCollector(Yaml().dumpAsMap(yaml2))
+    vertx.eventBus().consumer<String>("jmxUrl.${nodeName}") { reply ->
+      collector = handleUrlRetrieval(reply.body(), "jmxUrl")
+    }
 
-      vertx.eventBus().send("nodehandler.update", JsonObject(mapOf("nodeName" to nodeName, "jmxUrl" to jmxUrl)))
+    vertx.eventBus().consumer<String>("hostPort.${nodeName}") { reply ->
+      collector = handleUrlRetrieval(reply.body(), "hostPort")
     }
 
     vertx.eventBus().publish("metrics-init", JsonObject(mapOf("nodeName" to nodeName)))
-    vertx.setPeriodic(15000) { id ->
+    vertx.setPeriodic(15000) {
       if (collector != null) {
         val myCollector = collector
         val mfsList = myCollector?.collect()
@@ -48,30 +46,41 @@ class JmxEndpointVerticle(private val nodeName: String, private val configFile: 
     }
   }
 
+  private fun handleUrlRetrieval(jmxScrapeUrl: String, scapeType: String): JmxCollector {
+    val yaml = Yaml().loadAs(FileReader(configFile), mutableMapOf<Any?, Any?>().javaClass)
+    yaml[scapeType] = jmxScrapeUrl
+    vertx.eventBus().send("nodehandler.update", JsonObject(mapOf("nodeName" to nodeName, "url" to jmxScrapeUrl)))
+    return MyJmxCollector(Yaml().dumpAsMap(yaml))
+  }
+
   override fun stop() {
-    vertx.eventBus().publish("metrics-remove  ", JsonObject(mapOf("nodeName" to nodeName)))
+    vertx.eventBus().publish("metrics-remove", JsonObject(mapOf("nodeName" to nodeName)))
   }
 
   class MyJmxCollector(yaml: String) : JmxCollector(yaml) {
 
     override fun collect() : List<Collector.MetricFamilySamples> {
 
-      val start = System.nanoTime()
       val mfsList = super.collect()
 
-      //Todo: make this configurable
-      IntStream.range(0,100000).forEach { addSample("$it", it.toDouble(), mfsList) }
+      //if enabled, add some fake samples
+      if (MoxyConfiguration.configuration.debug.performance.enabled) {
+        IntStream.range(mfsList.size, MoxyConfiguration.configuration.debug.performance.fakeMetrics).forEach { addFakeSample("$it", it.toDouble(), mfsList) }
+      }
 
-      //TODO: limit number of metrics
+      if (MoxyConfiguration.configuration.metricsLimit > -1) {
+        return mfsList.subList(0, MoxyConfiguration.configuration.metricsLimit)
+      }
+
       return mfsList
     }
 
-    private fun addSample(sampleName: String, value: Double, mfsList: MutableList<MetricFamilySamples>) {
+    private fun addFakeSample(sampleName: String, value: Double, mfsList: MutableList<MetricFamilySamples>) {
       val labels = mutableListOf("context", "host")
-      val values = mutableListOf("host-${sampleName}", "localhost")
+      val values = mutableListOf("host-$sampleName", "localhost")
       val metricName = "tomcat_session_sessioncounter_total"
       val scrapeCount = MetricFamilySamples.Sample(metricName, labels, values, value)
-      mfsList.add(MetricFamilySamples(sampleName, Type.GAUGE, "Time this JMX scrape took, in seconds.", listOf(scrapeCount)))
+      mfsList.add(MetricFamilySamples(sampleName, Type.GAUGE, "fake metric $sampleName", listOf(scrapeCount)))
     }
   }
 }

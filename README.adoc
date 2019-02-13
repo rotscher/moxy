@@ -34,7 +34,8 @@ sun.management.JMXConnectorServer.address="service:jmx:rmi://127.0.0.1/stub/rO0A
 
 curl -vi -XPOST -H "Content-Type: application/json" -d'{"configuration":"tomcat","jmxUrl":"jmx://foobar"}' http://localhost:8080/nodes/i
 curl -vi -XPOST -H "Content-Type: application/json" -d'{"configFile":"C:/work/projects/moxy/src/main/resources/tomcat.yml","jmxUrl":"jmx://foobar"}' http://localhost:8080/nodes/i
-curl -vi -XPOST -H "Content-Type: application/json" -d'{"configFile":"C:/work/projects/moxy/src/main/resources/tomcat.yml"}' http://localhost:8080/nodes/a
+curl -vi -XPOST -H "Content-Type: application/json" -d'{"configFile":"C:/work/projects/moxy/src/main/resources/tomcat.yml"}' http://localhost:8181/nodes/a
+curl -vi -XPOST -H "Content-Type: application/json" -d'{"configFile":"C:/work/projects/moxy/src/main/resources/tomcat.yml", "pid": 14520}' http://localhost:8181/nodes/tomcat
 curl -vi -XPOST -H "Content-Type: application/json" -d'{"configFile":"/home/rotscher/data/projects/moxy/src/main/resources/tomcat.yml"}' http://localhost:8181/nodes/f
 
 curl -vi -XDELETE http://localhost:8181/nodes/f

@@ -1,12 +1,10 @@
 package ch.postfinance.moxy.moxy
 
-import io.micrometer.prometheus.PrometheusMeterRegistry
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Future
 import io.vertx.core.http.HttpMethod
 import io.vertx.ext.web.Router
 import io.vertx.ext.web.handler.BodyHandler
-import io.vertx.micrometer.backends.BackendRegistries
 
 class HttpServerVerticle : AbstractVerticle() {
 
@@ -27,10 +25,9 @@ class HttpServerVerticle : AbstractVerticle() {
     router.route(HttpMethod.DELETE, "/nodes/:nodeName").handler(handler::removeNode)
     router.route(HttpMethod.GET, "/nodes/:nodeName/metrics").handler(metricsHandler::getMetrics)
 
-    val registry = BackendRegistries.getDefaultNow() as PrometheusMeterRegistry
     // Setup a route for metrics
     router.route("/metrics").handler { ctx ->
-      val response = registry.scrape()
+      val response = metricsRegistry.scrape()
       ctx.response().end(response)
     }
 

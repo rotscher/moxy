@@ -1,12 +1,10 @@
 package ch.postfinance.moxy.moxy
 
-import io.micrometer.prometheus.PrometheusMeterRegistry
 import io.vertx.core.Future
 import io.vertx.core.Vertx
 import io.vertx.core.eventbus.Message
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
-import io.vertx.micrometer.backends.BackendRegistries
 
 class NodeHandler(vertx: Vertx) {
 
@@ -15,8 +13,8 @@ class NodeHandler(vertx: Vertx) {
   init {
     val eb = vertx.eventBus()
 
-    eb.consumer<Any>("nodehandler.register") { message ->
-      val messageBody = message.body() as JsonObject
+    eb.consumer<JsonObject>("nodehandler.register") { message ->
+      val messageBody = message.body()
       val nodeName = messageBody.getString("nodeName")
       deploymentMap[nodeName] = messageBody
     }
@@ -70,6 +68,7 @@ class NodeHandler(vertx: Vertx) {
     val nodeName = routingContext.request().getParam("nodeName")
     val jmxUrl: String? = routingContext.bodyAsJson.getString("jmxUrl")
     val configFile = routingContext.bodyAsJson.getString("configFile")
+    val pid = routingContext.bodyAsJson.getInteger("pid", -1)
     val user: String? = routingContext.bodyAsJson.getString("user")
     val group: String? = routingContext.bodyAsJson.getString("group")
 
@@ -80,7 +79,7 @@ class NodeHandler(vertx: Vertx) {
       return
     }
 
-    val data = NodeModel(nodeName, if (jmxUrl == null) "" else jmxUrl, configFile, if (user == null) "" else user, if (group == null) "" else group).asJsonObject()
+    val data = NodeModel(nodeName, if (jmxUrl == null) "" else jmxUrl, configFile, pid, if (user == null) "" else user, if (group == null) "" else group).asJsonObject()
 
     val deployEndpoint = Future.future<Message<Any>>()
 
@@ -93,8 +92,7 @@ class NodeHandler(vertx: Vertx) {
 
     result.setHandler { asyncResult ->
       if (!asyncResult.succeeded()) {
-        val registry = BackendRegistries.getDefaultNow() as PrometheusMeterRegistry
-        registry.counter("moxy_error_count", "name", "endpoint_persistence", "action", "add").increment()
+        incrementErrorCount("addNode_persistence", nodeName)
       }
     }
 
@@ -120,8 +118,7 @@ class NodeHandler(vertx: Vertx) {
 
       result.setHandler { asyncResult ->
         if (!asyncResult.succeeded()) {
-          val registry = BackendRegistries.getDefaultNow() as PrometheusMeterRegistry
-          registry.counter("moxy_error_count", "name", "endpoint_persistence", "action", "remove").increment()
+          incrementErrorCount("removeNode_persistence", nodeName)
         }
       }
 

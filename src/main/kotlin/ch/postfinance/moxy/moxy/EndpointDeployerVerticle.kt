@@ -1,13 +1,14 @@
 package ch.postfinance.moxy.moxy
 
-import io.micrometer.prometheus.PrometheusMeterRegistry
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.DeploymentOptions
 import io.vertx.core.json.JsonObject
-import io.vertx.micrometer.backends.BackendRegistries
 import java.util.concurrent.TimeUnit
+import java.util.logging.Logger
 
 class EndpointDeployerVerticle: AbstractVerticle() {
+
+  private val LOG = Logger.getLogger("moxy.general")
 
   override fun start() {
     val eb = vertx.eventBus()
@@ -22,8 +23,6 @@ class EndpointDeployerVerticle: AbstractVerticle() {
         .setMaxWorkerExecuteTime(MoxyConfiguration.configuration.bootstrapMaxWait)
         .setMaxWorkerExecuteTimeUnit(TimeUnit.MINUTES)
 
-      val registry = BackendRegistries.getDefaultNow() as PrometheusMeterRegistry
-
       vertx.deployVerticle(
         JmxEndpointVerticle(node.nodeName, node.configFile),
         DeploymentOptions(JsonObject(mapOf("worker" to true)))) { jmxMetricsResult ->
@@ -31,20 +30,20 @@ class EndpointDeployerVerticle: AbstractVerticle() {
           val json = node.asJsonObject()
           json.put("deploymentId", jmxMetricsResult.result())
           eb.send("nodehandler.register", json)
+          LOG.info("deployed verticle, node=${node.nodeName}")
 
           vertx.deployVerticle(
-                  JmxUrlRetrieverVerticle(node.nodeName, node.jmxUrl, node.user, node.group),
+                  JmxUrlRetrieverVerticle(node.nodeName, node.jmxUrl, node.pid, node.user, node.group),
                   deploymentOptions) { jmxUrlRetrieverResult ->
-            if (jmxUrlRetrieverResult.succeeded()) {
-              vertx.undeploy(jmxUrlRetrieverResult.result())
-            } else   {
-              registry.counter("moxy_error_count", "name", "deployVerticle", "verticle", "JmxUrlRetrieverVerticle").increment()
+            if (!jmxUrlRetrieverResult.succeeded()) {
+              LOG.severe("jmx url retriever, node=${node.nodeName}, cause=${jmxUrlRetrieverResult.cause()}")
+              incrementErrorCount("deploy_JmxUrlRetrieverVerticle", node.nodeName)
             }
+            vertx.undeploy(jmxUrlRetrieverResult.result())
           }
-
-
         } else   {
-          registry.counter("moxy_error_count", "name", "deployVerticle", "verticle", "JmxEndpointVerticle").increment()
+          incrementErrorCount("deploy_JmxEndpointVerticle", node.nodeName)
+          LOG.severe("could not deploy verticle, node=${node.nodeName}, cause=${jmxMetricsResult.cause()}")
         }
       }
       it.reply("success")

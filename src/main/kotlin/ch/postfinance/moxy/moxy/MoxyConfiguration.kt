@@ -10,10 +10,8 @@ object MoxyConfiguration {
             Configuration::class.java)
 }
 
-data class Configuration(var name: String, var enabled: Boolean, var httpServerPort: Int, var dataFile: String, var scrapeDelay: Long, var metricsLimit: Int, var bootstrapMaxWait: Long, var debug: DebugConf) {
-
-
-    constructor(): this("", true, 8181, "", 15000, -1,15, DebugConf())
+data class Configuration(var name: String, var enabled: Boolean, var httpServerPort: Int, var dataFile: String, var scrapeDelay: Long, var metricsLimit: Int, var bootstrapMaxWait: Long, var jmxRetrievalDelay: Long, var debug: DebugConf) {
+    constructor(): this("", true, 8181, "", 15000, -1,15, 2, DebugConf())
 }
 
 data class DebugConf(var performance: PerformanceConf, var jmxRetrieval: JmxRetrievalConf) {

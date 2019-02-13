@@ -1,13 +1,13 @@
 package ch.postfinance.moxy.moxy
 
-import io.micrometer.prometheus.PrometheusMeterRegistry
 import io.vertx.core.Future
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
-import io.vertx.micrometer.backends.BackendRegistries
+import java.util.logging.Logger
 
 object EndpointPersistence {
 
+  private val LOG = Logger.getLogger("moxy.general")
   private val dataMap = JsonObject()
 
   fun init(vertx: Vertx) {
@@ -18,8 +18,8 @@ object EndpointPersistence {
           vertx.eventBus().send("deployer.endpoint.jmx", it.value)
         }
       } else {
-        val registry = BackendRegistries.getDefaultNow() as PrometheusMeterRegistry
-        registry.counter("moxy_error_count", "name", "endpoint_persistence", "action", "init").increment()
+        incrementErrorCount("init_persistence", "n/A")
+        LOG.severe("error while loading verticles, cause=${result.cause()}")
       }
     }
   }

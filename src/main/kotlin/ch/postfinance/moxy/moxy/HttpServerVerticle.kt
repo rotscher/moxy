@@ -26,7 +26,7 @@ class HttpServerVerticle : AbstractVerticle() {
     router.route(HttpMethod.GET, "/nodes/:nodeName/metrics").handler(metricsHandler::getMetrics)
 
     // Setup a route for metrics
-    router.route("/metrics").handler { ctx ->
+    router.route("/metrics/").handler { ctx ->
       val response = metricsRegistry.scrape()
       ctx.response().end(response)
     }

@@ -7,7 +7,7 @@ class NodeModel(val nodeName: String, val jmxUrl: String, val configFile: String
     constructor(jsonObject: JsonObject) : this(jsonObject.getString("nodeName"),
             jsonObject.getString("jmxUrl", ""),
             jsonObject.getString("configFile"),
-            jsonObject.getInteger("pid"),
+            jsonObject.getInteger("pid", -1),
             jsonObject.getString("user", ""),
             jsonObject.getString("group", "")) {
 

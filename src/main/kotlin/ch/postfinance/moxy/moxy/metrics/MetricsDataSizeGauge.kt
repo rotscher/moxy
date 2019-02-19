@@ -6,13 +6,25 @@ import java.util.concurrent.atomic.AtomicLong
 
 class MetricsDataSizeGauge(val nodeName: String) {
 
-    private val atomicLong = AtomicLong()
+    private val metricsByteCount = AtomicLong()
+    private val metricsCount = AtomicLong()
+    private val samplesCount = AtomicLong()
 
     init {
-        metricsRegistry.gauge("metrics_data_size_bytes", mutableListOf(ImmutableTag("nodeName", nodeName)), atomicLong)
+        metricsRegistry.gauge("moxy_metrics_data_size_bytes", mutableListOf(ImmutableTag("nodeName", nodeName)), metricsByteCount)
+        metricsRegistry.gauge("moxy_metrics_data_size_count", mutableListOf(ImmutableTag("nodeName", nodeName)), metricsCount)
+        metricsRegistry.gauge("moxy_samples_data_size_count", mutableListOf(ImmutableTag("nodeName", nodeName)), samplesCount)
     }
 
-    fun setValue(curVal: Double) {
-        atomicLong.set(curVal.toLong())
+    fun setByteCount(curVal: Double) {
+        metricsByteCount.set(curVal.toLong())
+    }
+
+    fun setMetricsCount(curVal: Double) {
+        metricsCount.set(curVal.toLong())
+    }
+
+    fun setSamplesCount(curVal: Double) {
+        samplesCount.set(curVal.toLong())
     }
 }

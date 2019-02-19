@@ -34,7 +34,7 @@ class MetricsHandler(vertx: Vertx) {
       val nodeName = messageBody.getString("nodeName")
       val buf = Buffer.buffer(messageBody.getBinary("data"))
       dataMap[nodeName] = buf
-      gaugeMap[nodeName]?.setValue(buf.bytes.size.toDouble())
+      gaugeMap[nodeName]?.setByteCount(buf.bytes.size.toDouble())
     }
   }
 

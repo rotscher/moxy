@@ -1,5 +1,6 @@
 package ch.postfinance.moxy.moxy
 
+import ch.postfinance.moxy.moxy.metrics.MetricsDataSizeGauge
 import io.prometheus.client.Collector
 import io.prometheus.client.exporter.common.TextFormat
 import io.prometheus.jmx.JmxCollector
@@ -17,6 +18,7 @@ import java.util.stream.IntStream
 class JmxEndpointVerticle(private val nodeName: String, private val configFile: String) : AbstractVerticle() {
 
   private val LOG = Logger.getLogger("moxy.verticle.endpoint.jmx")
+  private val metricsDataSizeGauge = MetricsDataSizeGauge(nodeName)
 
   override fun start() {
 
@@ -101,11 +103,14 @@ class JmxEndpointVerticle(private val nodeName: String, private val configFile: 
     vertx.eventBus().publish("metrics-remove", JsonObject(mapOf("nodeName" to nodeName)))
   }
 
-  class MyJmxCollector(val yaml: String, val config: JsonObject) : JmxCollector(yaml) {
+  inner class MyJmxCollector(val yaml: String, val config: JsonObject) : JmxCollector(yaml) {
 
     override fun collect() : List<Collector.MetricFamilySamples> {
 
       val mfsList = super.collect()
+
+      metricsDataSizeGauge.setSamplesCount(mfsList.flatMap { metricFamilySamples -> metricFamilySamples.samples }.count().toDouble())
+      metricsDataSizeGauge.setMetricsCount(mfsList.size.toDouble())
 
       //if enabled, add some fake samples
       val performanceConf = config.getJsonObject("debug").getJsonObject("performance")
@@ -113,9 +118,10 @@ class JmxEndpointVerticle(private val nodeName: String, private val configFile: 
         IntStream.range(mfsList.size, performanceConf.getInteger("fakeMetrics")).forEach { addFakeSample("$it", it.toDouble(), mfsList) }
       }
 
-      val metricsLimit = config.getInteger("metricsLimit")
+      val metricsLimit = config().getInteger("metricsLimit")
       if (metricsLimit > -1 && mfsList.size > metricsLimit) {
-        return mfsList.subList(0, metricsLimit)
+        //TODO: we only limit the number of metrics, a metric consists of multiple samples. Maybe the samples should be limited
+        mfsList.subList(0, metricsLimit)
       }
 
       return mfsList

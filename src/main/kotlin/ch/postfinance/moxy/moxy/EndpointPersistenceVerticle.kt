@@ -10,8 +10,8 @@ object EndpointPersistence {
   private val LOG = Logger.getLogger("moxy.general")
   private val dataMap = JsonObject()
 
-  fun init(vertx: Vertx) {
-    vertx.fileSystem().readFile(MoxyConfiguration.configuration.dataFile) { result ->
+  fun init(vertx: Vertx, config: JsonObject) {
+    vertx.fileSystem().readFile(config.getString("dataFile")) { result ->
       if (result.succeeded()) {
         JsonObject(result.result()).forEach {
           dataMap.put(it.key, it.value)
@@ -24,24 +24,24 @@ object EndpointPersistence {
     }
   }
 
-  fun addEndpoint(endpoint: JsonObject, vertx: Vertx): Future<Void>? {
+  fun addEndpoint(endpoint: JsonObject, vertx: Vertx, config: JsonObject): Future<Void>? {
     dataMap.put(endpoint.getString("nodeName"), endpoint)
-    return persist(vertx)
+    return persist(vertx, config)
   }
 
-  fun removeEndpoint(nodeName: String, vertx: Vertx): Future<Void>? {
+  fun removeEndpoint(nodeName: String, vertx: Vertx, config: JsonObject): Future<Void>? {
     dataMap.remove(nodeName)
-    return persist(vertx)
+    return persist(vertx, config)
   }
 
-  fun updateJmxUrl(nodeName: String, jmxUrl: String, vertx: Vertx): Future<Void>? {
+  fun updateJmxUrl(nodeName: String, jmxUrl: String, vertx: Vertx, config: JsonObject): Future<Void>? {
     dataMap.getJsonObject(nodeName).put("jmxUrl", jmxUrl)
-    return persist(vertx)
+    return persist(vertx, config)
   }
 
-  private fun persist(vertx: Vertx): Future<Void>? {
+  private fun persist(vertx: Vertx, config: JsonObject): Future<Void>? {
     val future = Future.future<Void>()
-    vertx.fileSystem().writeFile(MoxyConfiguration.configuration.dataFile, dataMap.toBuffer(), future.completer())
+    vertx.fileSystem().writeFile(config.getString("dataFile"), dataMap.toBuffer(), future.completer())
     return future
   }
 }

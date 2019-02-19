@@ -1,0 +1,24 @@
+{
+  "name": "default",
+  "enabled": true,
+  "httpServerPort": 8181,
+  "dataFile": "/home/rotscher/data/projects/moxy/endpoints.json",
+  "scrapeDelay": 15000,
+  "metricsLimit": 300,
+  "bootstrapMaxWait": 15,
+  "jmxRetrievalDelay": 2,
+  "debug": {
+    "performance": {
+      "enabled": false,
+      "fakeMetrics": 50000
+    },
+    "jmxRetrieval": {
+      "static": true,
+      "hostPort": "rotscher-pc:9010",
+      "delay": {
+        "enabled": false,
+        "count": 4
+      }
+    }
+  }
+}

@@ -1,13 +1,13 @@
 package ch.postfinance.moxy.moxy.jmxextractor
 
-import ch.postfinance.moxy.moxy.MoxyConfiguration
 import ch.postfinance.moxy.moxy.incrementErrorCount
+import io.vertx.core.json.JsonObject
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
 
-class ForeignUserExtractor(val user: String, val group: String) : JmxExtractor {
+class ForeignUserExtractor(val user: String, val group: String, val config: JsonObject) : JmxExtractor {
     override fun extractJmxUrl(pid: Int): String {
         var url = ""
 
@@ -30,7 +30,7 @@ class ForeignUserExtractor(val user: String, val group: String) : JmxExtractor {
 
         val result: Boolean
         try {
-            result = process.waitFor(MoxyConfiguration.configuration.jmxRetrievalDelay, TimeUnit.SECONDS)
+            result = process.waitFor(config.getLong("jmxRetrievalDelay"), TimeUnit.SECONDS)
         } catch (e: InterruptedException) {
             incrementErrorCount("processBuilder_wait", "n/A")
             process.destroy()

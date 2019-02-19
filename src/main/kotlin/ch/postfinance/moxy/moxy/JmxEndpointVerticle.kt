@@ -24,7 +24,7 @@ class JmxEndpointVerticle(private val nodeName: String, private val configFile: 
 
     vertx.eventBus().consumer<String>("jmxUrl.$nodeName") { reply ->
       collector = handleUrlRetrieval(reply.body(), "jmxUrl")
-      EndpointPersistence.updateJmxUrl(nodeName, reply.body(), vertx)?.setHandler {
+      EndpointPersistence.updateJmxUrl(nodeName, reply.body(), vertx, config())?.setHandler {
         if (!it.succeeded()) {
           incrementErrorCount("jmxUrlConsumer_persistence", nodeName)
         }
@@ -39,11 +39,16 @@ class JmxEndpointVerticle(private val nodeName: String, private val configFile: 
       incrementErrorCount("hostPortConsumer", nodeName)
     }
 
+    vertx.eventBus().consumer<JsonObject>("new-configuration") { reply ->
+      val myCollector = collector as MyJmxCollector
+      collector = MyJmxCollector(myCollector.yaml, reply.body())
+    }
+
     val initBuff = writeMetricCollection(createInitSample(0.0))
     vertx.eventBus().publish("metrics-init", JsonObject(mapOf("nodeName" to nodeName, "data" to initBuff.bytes)))
 
 
-    vertx.setPeriodic(MoxyConfiguration.configuration.scrapeDelay) {
+    vertx.setPeriodic(config().getLong("scrapeDelay")) {
       if (collector != null) {
         val myCollector = collector
         val mfsList = myCollector?.collect()
@@ -82,7 +87,7 @@ class JmxEndpointVerticle(private val nodeName: String, private val configFile: 
     yaml[scrapeType] = jmxScrapeUrl
     vertx.eventBus().send("nodehandler.update", JsonObject(mapOf("nodeName" to nodeName, "url" to jmxScrapeUrl)))
     LOG.fine("got jvm url, node=$nodeName, url=$jmxScrapeUrl")
-    return MyJmxCollector(Yaml().dumpAsMap(yaml))
+    return MyJmxCollector(Yaml().dumpAsMap(yaml), config())
   }
 
   private fun createInitSample(initStatus: Double): List<Collector.MetricFamilySamples> {
@@ -96,19 +101,21 @@ class JmxEndpointVerticle(private val nodeName: String, private val configFile: 
     vertx.eventBus().publish("metrics-remove", JsonObject(mapOf("nodeName" to nodeName)))
   }
 
-  class MyJmxCollector(yaml: String) : JmxCollector(yaml) {
+  class MyJmxCollector(val yaml: String, val config: JsonObject) : JmxCollector(yaml) {
 
     override fun collect() : List<Collector.MetricFamilySamples> {
 
       val mfsList = super.collect()
 
       //if enabled, add some fake samples
-      if (MoxyConfiguration.configuration.debug.performance.enabled) {
-        IntStream.range(mfsList.size, MoxyConfiguration.configuration.debug.performance.fakeMetrics).forEach { addFakeSample("$it", it.toDouble(), mfsList) }
+      val performanceConf = config.getJsonObject("debug").getJsonObject("performance")
+      if (performanceConf.getBoolean("enabled")) {
+        IntStream.range(mfsList.size, performanceConf.getInteger("fakeMetrics")).forEach { addFakeSample("$it", it.toDouble(), mfsList) }
       }
 
-      if (MoxyConfiguration.configuration.metricsLimit > -1) {
-        return mfsList.subList(0, MoxyConfiguration.configuration.metricsLimit)
+      val metricsLimit = config.getInteger("metricsLimit")
+      if (metricsLimit > -1 && mfsList.size > metricsLimit) {
+        return mfsList.subList(0, metricsLimit)
       }
 
       return mfsList

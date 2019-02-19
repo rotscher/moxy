@@ -5,6 +5,7 @@ import ch.postfinance.moxy.moxy.jmxextractor.JmxExtractor
 import ch.postfinance.moxy.moxy.jmxextractor.NativeUserExtractor
 import io.micrometer.core.instrument.Timer
 import io.vertx.core.AbstractVerticle
+import io.vertx.core.json.JsonObject
 import java.util.logging.Logger
 import java.util.stream.IntStream
 
@@ -25,14 +26,18 @@ class JmxUrlRetrieverVerticle(private val nodeName: String, private val jmxUrl: 
               .register(metricsRegistry)
 
       timer.record {
-        if (MoxyConfiguration.configuration.debug.jmxRetrieval.delay.enabled) {
-          IntStream.range(0, MoxyConfiguration.configuration.debug.jmxRetrieval.delay.count).forEach { Thread.sleep(1000) }
+
+        val jmxRetrievalConf = config().getJsonObject("debug").getJsonObject("jmxRetrieval")
+        val delayConf = jmxRetrievalConf.getJsonObject("delay")
+        if (delayConf.getBoolean("enabled")) {
+          IntStream.range(0, delayConf.getInteger("count")).forEach { Thread.sleep(1000) }
         }
 
-        if (MoxyConfiguration.configuration.debug.jmxRetrieval.static) {
+        jmxRetrievalConf.getBoolean("static")
+        if (jmxRetrievalConf.getBoolean("static")) {
           when {
-            MoxyConfiguration.configuration.debug.jmxRetrieval.jmxUrl != null -> eb.send("jmxUrl.$nodeName", MoxyConfiguration.configuration.debug.jmxRetrieval.jmxUrl)
-            MoxyConfiguration.configuration.debug.jmxRetrieval.hostPort != null -> eb.send("hostPort.$nodeName", MoxyConfiguration.configuration.debug.jmxRetrieval.hostPort)
+            jmxRetrievalConf.getString("jmxUrl") != null -> eb.send("jmxUrl.$nodeName", jmxRetrievalConf.getString("jmxUrl"))
+              jmxRetrievalConf.getString("hostPort") != null -> eb.send("hostPort.$nodeName", jmxRetrievalConf.getString("hostPort"))
             else -> throw Exception("either jmxUrl or hostPort must be defined ")
           }
         } else {
@@ -41,7 +46,7 @@ class JmxUrlRetrieverVerticle(private val nodeName: String, private val jmxUrl: 
             LOG.warning("pid not valid, pid=$pid, node=$nodeName")
             throw Exception("pid not valid, pid=$pid, node=$nodeName")
           } else {
-            val jmxExtractor = jmxExtractorFactory(user, group)
+            val jmxExtractor = jmxExtractorFactory(user, group, config())
             val jmxUrl = jmxExtractor.extractJmxUrl(pid)
             LOG.fine("retrieved jmx url, url=$jmxUrl")
             eb.send("jmxUrl.$nodeName", jmxUrl)
@@ -51,11 +56,11 @@ class JmxUrlRetrieverVerticle(private val nodeName: String, private val jmxUrl: 
     }
   }
 
-  private fun jmxExtractorFactory(user: String, group: String): JmxExtractor {
+  private fun jmxExtractorFactory(user: String, group: String, config: JsonObject): JmxExtractor {
     if (user.isBlank() && group.isBlank()) {
       return NativeUserExtractor()
     }
 
-    return ForeignUserExtractor(user, group)
+    return ForeignUserExtractor(user, group, config)
   }
 }

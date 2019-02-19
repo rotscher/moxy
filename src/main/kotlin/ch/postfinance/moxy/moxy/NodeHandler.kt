@@ -6,7 +6,7 @@ import io.vertx.core.eventbus.Message
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
 
-class NodeHandler(vertx: Vertx) {
+class NodeHandler(vertx: Vertx, private val config: JsonObject) {
 
   private val deploymentMap = mutableMapOf<String, JsonObject>()
 
@@ -59,7 +59,7 @@ class NodeHandler(vertx: Vertx) {
 
   fun addNode(routingContext: RoutingContext) {
 
-    if (!MoxyConfiguration.configuration.enabled) {
+    if (config.getBoolean("enabled")) {
       val response = routingContext.response()
       response.statusCode = 204
       response.end()
@@ -87,7 +87,7 @@ class NodeHandler(vertx: Vertx) {
     //TODO: register endpoint as prometheus service, get the code from midwadm
 
     val result = deployEndpoint.compose{
-      EndpointPersistence.addEndpoint(data, routingContext.vertx())
+      EndpointPersistence.addEndpoint(data, routingContext.vertx(), config)
     }
 
     result.setHandler { asyncResult ->
@@ -113,7 +113,7 @@ class NodeHandler(vertx: Vertx) {
       routingContext.vertx().undeploy(deploymentMap.get(nodeName)?.getString("deploymentId"), undeployEndpoint.completer())
 
       val result = undeployEndpoint.compose{
-        EndpointPersistence.removeEndpoint(nodeName, routingContext.vertx())
+        EndpointPersistence.removeEndpoint(nodeName, routingContext.vertx(), config)
       }
 
       result.setHandler { asyncResult ->

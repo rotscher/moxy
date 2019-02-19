@@ -9,13 +9,9 @@ import io.vertx.ext.web.handler.BodyHandler
 class HttpServerVerticle : AbstractVerticle() {
 
   override fun start(startFuture: Future<Void>) {
-
-    val server = vertx
-      .createHttpServer()
-
     val router = Router.router(vertx)
 
-    val handler = NodeHandler(vertx)
+    val handler = NodeHandler(vertx, config())
     val metricsHandler = MetricsHandler(vertx)
 
     router.route().handler(BodyHandler.create())
@@ -31,11 +27,13 @@ class HttpServerVerticle : AbstractVerticle() {
       ctx.response().end(response)
     }
 
-    server.requestHandler(router)
-      .listen(MoxyConfiguration.configuration.httpServerPort) { http ->
+    val port = config().getInteger("httpServerPort", 8080)
+
+    vertx.createHttpServer().requestHandler(router)
+      .listen(port) { http ->
         if (http.succeeded()) {
           startFuture.complete()
-          println("HTTP server started on port ${MoxyConfiguration.configuration.httpServerPort}")
+          println("HTTP server started on port $port")
         } else {
           startFuture.fail(http.cause())
         }

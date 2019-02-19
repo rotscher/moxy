@@ -15,17 +15,18 @@ class EndpointDeployerVerticle: AbstractVerticle() {
 
     eb.consumer<JsonObject>("deployer.endpoint.jmx") {
 
+      val config = config()
       val node = NodeModel(it.body())
 
       val deploymentOptions = DeploymentOptions()
         .setWorker(true)
         .setWorkerPoolName("bootstrap")
-        .setMaxWorkerExecuteTime(MoxyConfiguration.configuration.bootstrapMaxWait)
-        .setMaxWorkerExecuteTimeUnit(TimeUnit.MINUTES)
+        .setMaxWorkerExecuteTime(config.getLong("bootstrapMaxWait", 15))
+        .setMaxWorkerExecuteTimeUnit(TimeUnit.MINUTES).setConfig(config)
 
       vertx.deployVerticle(
         JmxEndpointVerticle(node.nodeName, node.configFile),
-        DeploymentOptions(JsonObject(mapOf("worker" to true)))) { jmxMetricsResult ->
+        DeploymentOptions(JsonObject(mapOf("worker" to true))).setConfig(config)) { jmxMetricsResult ->
         if (jmxMetricsResult.succeeded()) {
           val json = node.asJsonObject()
           json.put("deploymentId", jmxMetricsResult.result())

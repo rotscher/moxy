@@ -1,8 +1,6 @@
 package ch.postfinance.moxy.moxy
 
-import io.vertx.core.Future
 import io.vertx.core.Vertx
-import io.vertx.core.eventbus.Message
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
 
@@ -59,7 +57,7 @@ class NodeHandler(vertx: Vertx, private val config: JsonObject) {
 
   fun addNode(routingContext: RoutingContext) {
 
-    if (config.getBoolean("enabled")) {
+    if (!config.getBoolean("enabled")) {
       val response = routingContext.response()
       response.statusCode = 204
       response.end()
@@ -81,20 +79,14 @@ class NodeHandler(vertx: Vertx, private val config: JsonObject) {
 
     val data = NodeModel(nodeName, if (jmxUrl == null) "" else jmxUrl, configFile, pid, if (user == null) "" else user, if (group == null) "" else group).asJsonObject()
 
-    val deployEndpoint = Future.future<Message<Any>>()
-
-    routingContext.vertx().eventBus().send("deployer.endpoint.jmx", data, deployEndpoint.completer())
-    //TODO: register endpoint as prometheus service, get the code from midwadm
-
-    val result = deployEndpoint.compose{
-      EndpointPersistence.addEndpoint(data, routingContext.vertx(), config)
-    }
-
-    result.setHandler { asyncResult ->
-      if (!asyncResult.succeeded()) {
-        incrementErrorCount("addNode_persistence", nodeName)
+    routingContext.vertx().eventBus().send<JsonObject>("deployer.endpoint.jmx", data) { deployResult ->
+      if (deployResult.succeeded()) {
+        routingContext.vertx().eventBus().send("persistence.writer.addnode", data)
+      } else {
+        incrementErrorCount("addNode_deploy", nodeName)
       }
     }
+    //TODO: register endpoint as prometheus service, get the code from midwadm
 
     val response = routingContext.response()
     response.statusCode = 201
@@ -107,24 +99,18 @@ class NodeHandler(vertx: Vertx, private val config: JsonObject) {
     val nodeName = routingContext.request().getParam("nodeName")
     val response = routingContext.response()
 
-    val undeployEndpoint = Future.future<Void>()
-
     if (deploymentMap.containsKey(nodeName)) {
-      routingContext.vertx().undeploy(deploymentMap.get(nodeName)?.getString("deploymentId"), undeployEndpoint.completer())
-
-      val result = undeployEndpoint.compose{
-        EndpointPersistence.removeEndpoint(nodeName, routingContext.vertx(), config)
-      }
-
-      result.setHandler { asyncResult ->
-        if (!asyncResult.succeeded()) {
-          incrementErrorCount("removeNode_persistence", nodeName)
+      routingContext.vertx().undeploy(deploymentMap.get(nodeName)?.getString("deploymentId")) { deployResult ->
+        if (deployResult.succeeded()) {
+          routingContext.vertx().eventBus().send("persistence.writer.removenode", nodeName)
+        } else {
+          incrementErrorCount("removeNode_undeploy", nodeName)
         }
       }
 
       response.statusCode = 200
     } else {
-      response.statusCode = 400
+      response.statusCode = 404
     }
 
     response.end()

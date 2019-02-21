@@ -1,5 +1,7 @@
 package ch.postfinance.moxy.moxy
 
+import ch.postfinance.moxy.moxy.persistence.LoadVerticle
+import ch.postfinance.moxy.moxy.persistence.WriteVerticle
 import io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics
 import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics
 import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics
@@ -39,7 +41,11 @@ fun main() {
     vertx.deployVerticle(EndpointDeployerVerticle(), DeploymentOptions(JsonObject(mapOf("worker" to true))).setConfig(result))
     vertx.deployVerticle(HttpServerVerticle(), DeploymentOptions(JsonObject(mapOf("worker" to true))).setConfig(result)) {
       if (it.succeeded()) {
-        EndpointPersistence.init(vertx, result)
+        vertx.deployVerticle(WriteVerticle(), DeploymentOptions().setConfig(result)) {
+          if (it.succeeded()) {
+            vertx.deployVerticle(LoadVerticle(), DeploymentOptions().setConfig(result))
+          }
+        }
       }
     }
   }

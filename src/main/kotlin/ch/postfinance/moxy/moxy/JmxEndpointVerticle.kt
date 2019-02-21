@@ -1,6 +1,5 @@
 package ch.postfinance.moxy.moxy
 
-import ch.postfinance.moxy.moxy.metrics.MetricsDataSizeGauge
 import io.prometheus.client.Collector
 import io.prometheus.client.exporter.common.TextFormat
 import io.prometheus.jmx.JmxCollector
@@ -18,25 +17,20 @@ import java.util.stream.IntStream
 class JmxEndpointVerticle(private val nodeName: String, private val configFile: String) : AbstractVerticle() {
 
   private val LOG = Logger.getLogger("moxy.verticle.endpoint.jmx")
-  private val metricsDataSizeGauge = MetricsDataSizeGauge(nodeName)
 
   override fun start() {
 
     var collector: JmxCollector? = null
 
     vertx.eventBus().consumer<String>("jmxUrl.$nodeName") { reply ->
-      collector = handleUrlRetrieval(reply.body(), "jmxUrl")
-      EndpointPersistence.updateJmxUrl(nodeName, reply.body(), vertx, config())?.setHandler {
-        if (!it.succeeded()) {
-          incrementErrorCount("jmxUrlConsumer_persistence", nodeName)
-        }
-      }
+      collector = createCollector(reply.body(), "jmxUrl")
+      vertx.eventBus().send("persistence.writer.updatenode", JsonObject(mapOf("nodeName" to nodeName, "jmxUrl" to reply.body())))
     }.exceptionHandler {
       incrementErrorCount("jmxUrlConsumer", nodeName)
     }
 
     vertx.eventBus().consumer<String>("hostPort.$nodeName") { reply ->
-      collector = handleUrlRetrieval(reply.body(), "hostPort")
+      collector = createCollector(reply.body(), "hostPort")
     }.exceptionHandler {
       incrementErrorCount("hostPortConsumer", nodeName)
     }
@@ -84,7 +78,7 @@ class JmxEndpointVerticle(private val nodeName: String, private val configFile: 
     return samples.anyMatch{it.name == "jmx_scrape_error" && it.value > 0}
   }
 
-  private fun handleUrlRetrieval(jmxScrapeUrl: String, scrapeType: String): JmxCollector {
+  private fun createCollector(jmxScrapeUrl: String, scrapeType: String): JmxCollector {
     val yaml = Yaml().loadAs(FileReader(configFile), mutableMapOf<Any?, Any?>().javaClass)
     yaml[scrapeType] = jmxScrapeUrl
     vertx.eventBus().send("nodehandler.update", JsonObject(mapOf("nodeName" to nodeName, "url" to jmxScrapeUrl)))
@@ -108,9 +102,6 @@ class JmxEndpointVerticle(private val nodeName: String, private val configFile: 
     override fun collect() : List<Collector.MetricFamilySamples> {
 
       val mfsList = super.collect()
-
-      metricsDataSizeGauge.setSamplesCount(mfsList.flatMap { metricFamilySamples -> metricFamilySamples.samples }.count().toDouble())
-      metricsDataSizeGauge.setMetricsCount(mfsList.size.toDouble())
 
       //if enabled, add some fake samples
       val performanceConf = config.getJsonObject("debug").getJsonObject("performance")
